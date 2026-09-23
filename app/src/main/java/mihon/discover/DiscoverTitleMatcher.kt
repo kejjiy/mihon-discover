@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.ui.discover
+package mihon.discover
 
 import java.text.Normalizer
 

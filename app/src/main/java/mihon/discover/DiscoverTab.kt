@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.ui.discover
+package mihon.discover
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.rememberVectorPainter

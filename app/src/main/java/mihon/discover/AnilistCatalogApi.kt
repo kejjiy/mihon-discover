@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.ui.discover
+package mihon.discover
 
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject

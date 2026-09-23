@@ -41,7 +41,6 @@ import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.source.Source
-import eu.kanade.tachiyomi.ui.discover.DiscoverStore
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.util.chapter.getNextUnread
 import eu.kanade.tachiyomi.util.removeCovers
@@ -124,7 +123,6 @@ class MangaViewModel(
     private val sourceManager: SourceManager,
     private val refreshTracks: RefreshTracks,
     private val coverCache: CoverCache,
-    private val discoverStore: DiscoverStore,
 ) : ViewModel() {
 
     val state: StateFlow<MangaViewModel.State>
@@ -193,7 +191,6 @@ class MangaViewModel(
                         it.copy(
                             manga = manga,
                             chapters = chapters.toChapterListItems(manga),
-                            aniListScore = discoverStore.aniListScore(manga.source, manga.url),
                         )
                     }
                 }
@@ -245,7 +242,6 @@ class MangaViewModel(
                     isRefreshingData = needRefreshInfo || needRefreshChapter,
                     dialog = null,
                     hideMissingChapters = libraryPreferences.hideMissingChapters.get(),
-                    aniListScore = discoverStore.aniListScore(manga.source, manga.url),
                 )
             }
 
@@ -1131,7 +1127,6 @@ class MangaViewModel(
             val dialog: Dialog? = null,
             val hasPromptedToAddBefore: Boolean = false,
             val hideMissingChapters: Boolean = false,
-            val aniListScore: Int? = null,
         ) : State {
             val processedChapters by lazy {
                 chapters.applyFilters(manga).toList()

@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.ui.discover
+package mihon.discover
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue

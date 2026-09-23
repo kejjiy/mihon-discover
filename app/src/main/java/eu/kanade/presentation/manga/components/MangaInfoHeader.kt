@@ -79,6 +79,7 @@ import eu.kanade.tachiyomi.util.system.copyToClipboard
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import mihon.app.di.appGraph
+import mihon.discover.AniListScoreBadge
 import mihon.icons.materialsymbols.MaterialSymbols
 import mihon.icons.materialsymbols.rounded.AttachMoney
 import mihon.icons.materialsymbols.rounded.Block
@@ -118,7 +119,6 @@ fun MangaInfoBox(
     manga: Manga,
     source: Source,
     isStubSource: Boolean,
-    aniListScore: Int?,
     onCoverClick: () -> Unit,
     doSearch: (query: String, global: Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -170,15 +170,12 @@ fun MangaInfoBox(
                 )
             }
         }
-        aniListScore?.let { score ->
-            Text(
-                text = "AniList $score/100",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp),
-            )
-        }
+        AniListScoreBadge(
+            manga = manga,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+        )
     }
 }
 

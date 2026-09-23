@@ -1,4 +1,4 @@
-package eu.kanade.tachiyomi.ui.discover
+package mihon.discover
 
 import android.content.Context
 import dev.zacsweers.metro.AppScope
@@ -45,11 +45,6 @@ class DiscoverStore(
 
     fun linkManga(sourceId: Long, url: String, mediaId: Long) {
         prefs.edit().putLong("link:$sourceId:$url", mediaId).apply()
-    }
-
-    fun aniListScore(sourceId: Long, url: String): Int? {
-        val id = prefs.getLong("link:$sourceId:$url", -1L)
-        return id.takeIf { it >= 0 }?.let(::getMedia)?.averageScore
     }
 
     private inline fun <reified T> read(key: String, ttl: kotlin.time.Duration): T? {
