@@ -118,6 +118,7 @@ fun MangaInfoBox(
     manga: Manga,
     source: Source,
     isStubSource: Boolean,
+    aniListScore: Int?,
     onCoverClick: () -> Unit,
     doSearch: (query: String, global: Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -168,6 +169,15 @@ fun MangaInfoBox(
                     doSearch = doSearch,
                 )
             }
+        }
+        aniListScore?.let { score ->
+            Text(
+                text = "AniList $score/100",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+            )
         }
     }
 }

@@ -1,0 +1,29 @@
+CREATE TABLE discover_media(
+    anilist_id INTEGER NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    alternative_titles TEXT NOT NULL,
+    cover_url TEXT,
+    description TEXT,
+    genres TEXT NOT NULL,
+    status TEXT,
+    popularity INTEGER,
+    average_score INTEGER,
+    chapters INTEGER,
+    start_year INTEGER,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE discover_source_matches(
+    anilist_id INTEGER NOT NULL,
+    source_id INTEGER NOT NULL,
+    manga_url TEXT NOT NULL,
+    confidence INTEGER NOT NULL,
+    chapter_count INTEGER,
+    completed INTEGER NOT NULL,
+    checked_at INTEGER NOT NULL,
+    PRIMARY KEY(anilist_id, source_id, manga_url),
+    FOREIGN KEY(anilist_id) REFERENCES discover_media(anilist_id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX discover_source_matches_manga ON discover_source_matches(source_id, manga_url)
+WHERE confidence = 0;
