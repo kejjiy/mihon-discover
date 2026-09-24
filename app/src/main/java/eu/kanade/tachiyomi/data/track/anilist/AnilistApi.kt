@@ -23,6 +23,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import mihon.discover.AniListSharedRateInterceptor
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import tachiyomi.core.common.util.lang.withIOContext
@@ -40,6 +41,7 @@ class AnilistApi(
     private val json: Json by injectLazy()
 
     private val authClient = client.newBuilder()
+        .addInterceptor(AniListSharedRateInterceptor)
         .addInterceptor(interceptor)
         .rateLimit(permits = 25, period = 1.minutes)
         .build()

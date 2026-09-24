@@ -34,6 +34,7 @@ class DiscoverStore(
     }
 
     fun putMatches(mediaId: Long, sourceIds: Set<Long>, value: SourceSearchState.Complete) {
+        if (value.partial || value.errors.isNotEmpty()) return
         val key = if (value.matches.isEmpty() && !value.partial) "empty:$mediaId" else "matches:$mediaId"
         write(key, value)
         write("sources:$mediaId", sourceIds.toList())
@@ -46,6 +47,9 @@ class DiscoverStore(
     fun linkManga(sourceId: Long, url: String, mediaId: Long) {
         prefs.edit().putLong("link:$sourceId:$url", mediaId).apply()
     }
+
+    fun linkedMediaId(sourceId: Long, url: String): Long? =
+        prefs.getLong("link:$sourceId:$url", -1L).takeIf { it >= 0 }
 
     private inline fun <reified T> read(key: String, ttl: kotlin.time.Duration): T? {
         val encoded = prefs.getString(key, null) ?: return null

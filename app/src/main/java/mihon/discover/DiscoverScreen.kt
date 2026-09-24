@@ -1,7 +1,10 @@
 package mihon.discover
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +22,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,10 +41,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +55,12 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import eu.kanade.tachiyomi.ui.manga.MangaScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import mihon.discover.recommendation.RecommendationEngine
+import mihon.discover.recommendation.RecommendationStore
+import mihon.discover.recommendation.RecommendationViewModel
 import mihon.icons.materialsymbols.MaterialSymbols
 import mihon.icons.materialsymbols.rounded.Close
 import mihon.icons.materialsymbols.rounded.Refresh
@@ -56,11 +68,57 @@ import mihon.icons.materialsymbols.rounded.Search
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun DiscoverScreen() {
+fun DiscoverScreen(initialSimilarId: Long? = null) {
     val navigator = LocalNavigator.currentOrThrow
     val viewModel = metroViewModel<DiscoverViewModel>()
+    val recommendations = metroViewModel<RecommendationViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val recommendationState by recommendations.state.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
+    var showingRecommendations by remember { mutableStateOf(initialSimilarId != null) }
+    var showFilters by remember { mutableStateOf(false) }
+    var showProfile by remember { mutableStateOf(false) }
+    var confirmErase by remember { mutableStateOf(false) }
+    var profileMessage by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val exportLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            uri?.let {
+                scope.launch {
+                    profileMessage = runCatching {
+                        val data = recommendations.exportPersonalData()
+                        withContext(Dispatchers.IO) {
+                            context.contentResolver.openOutputStream(it)?.bufferedWriter()?.use { writer ->
+                                writer.write(data)
+                            }
+                                ?: error("Impossible d’écrire la sauvegarde")
+                        }
+                        "Profil exporté"
+                    }.getOrElse { error -> error.message ?: "Export impossible" }
+                }
+            }
+        }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            scope.launch {
+                profileMessage = runCatching {
+                    val data = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(it)?.bufferedReader()?.use { reader ->
+                            reader.readText()
+                        }
+                            ?: error("Impossible de lire la sauvegarde")
+                    }
+                    recommendations.importPersonalData(data)
+                    "Profil importé"
+                }.getOrElse { error -> error.message ?: "Import impossible" }
+            }
+        }
+    }
+
+    LaunchedEffect(initialSimilarId) {
+        initialSimilarId?.let(recommendations::similarById)
+    }
 
     LaunchedEffect(state.openMangaId) {
         state.openMangaId?.let {
@@ -70,12 +128,23 @@ fun DiscoverScreen() {
     }
     val selected = state.selected
     if (selected != null) {
+        LaunchedEffect(selected.id) { recommendations.select(selected) }
         DiscoverDetail(
             media = selected,
             searchState = state.sourceState,
             onBack = viewModel::closeMedia,
             onRefresh = viewModel::refreshSources,
             onOpenMatch = viewModel::openMatch,
+            feedback = recommendationState.feedback,
+            onVote = recommendations::vote,
+            onStatus = recommendations::setReadingStatus,
+            onHide = recommendations::hideSelected,
+            onSimilar = {
+                recommendations.similar(selected)
+                viewModel.closeMedia()
+                showingRecommendations = true
+            },
+            associationError = state.associationError,
         )
         return
     }
@@ -86,9 +155,52 @@ fun DiscoverScreen() {
         }
     }
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Catalogue") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Catalogue") },
+                navigationIcon = {
+                    if (initialSimilarId != null) TextButton(onClick = { navigator.pop() }) { Text("Retour") }
+                },
+                actions = { TextButton(onClick = { showProfile = true }) { Text("Profil") } },
+            )
+        },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilterChip(
+                    selected = !showingRecommendations,
+                    onClick = { showingRecommendations = false },
+                    label = { Text("Explorer") },
+                )
+                FilterChip(
+                    selected = showingRecommendations && recommendationState.mode == RecommendationEngine.Mode.PERSONAL,
+                    onClick = {
+                        showingRecommendations = true
+                        recommendations.setMode(RecommendationEngine.Mode.PERSONAL)
+                    },
+                    label = { Text("Pour toi") },
+                )
+                FilterChip(
+                    selected = showingRecommendations && recommendationState.mode == RecommendationEngine.Mode.EXPLORE,
+                    onClick = {
+                        showingRecommendations = true
+                        recommendations.setMode(RecommendationEngine.Mode.EXPLORE)
+                    },
+                    label = { Text("Découverte") },
+                )
+            }
+            if (showingRecommendations) {
+                RecommendationPane(
+                    state = recommendationState,
+                    onRefresh = { recommendations.refresh(force = true) },
+                    onPolicy = recommendations::setRomancePolicy,
+                    onOpen = viewModel::openMedia,
+                )
+                return@Column
+            }
             OutlinedTextField(
                 value = state.query,
                 onValueChange = viewModel::setQuery,
@@ -98,7 +210,7 @@ fun DiscoverScreen() {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             )
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 DiscoverSort.entries.forEach { sort ->
@@ -108,6 +220,10 @@ fun DiscoverScreen() {
                         label = { Text(sort.label) },
                     )
                 }
+                AssistChip(onClick = {
+                    viewModel.loadPresets()
+                    showFilters = true
+                }, label = { Text("Filtres") })
             }
             state.error?.let { error ->
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -118,7 +234,22 @@ fun DiscoverScreen() {
             if (state.items.isEmpty() && state.loading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else if (state.items.isEmpty() && state.error == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No manga found") }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            if (state.partial) {
+                                "Recherche partielle : aucun résultat dans les pages examinées"
+                            } else {
+                                "No manga found"
+                            },
+                        )
+                        if (state.hasNextPage) {
+                            TextButton(onClick = viewModel::loadNextPage) {
+                                Text("Chercher davantage")
+                            }
+                        }
+                    }
+                }
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(130.dp),
@@ -132,6 +263,134 @@ fun DiscoverScreen() {
                         CatalogueCard(media, onClick = { viewModel.openMedia(media) })
                     }
                     if (state.loading) item { Box(Modifier.padding(24.dp)) { CircularProgressIndicator() } }
+                    if (state.partial) {
+                        item {
+                            TextButton(onClick = viewModel::loadNextPage) { Text("Chercher davantage") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (showFilters) {
+        CatalogueFilterDialog(
+            current = state.filters,
+            presets = state.presets,
+            options = state.filterOptions,
+            onApply = {
+                viewModel.setFilters(it)
+                showFilters = false
+            },
+            onSave = viewModel::savePreset,
+            onDismiss = { showFilters = false },
+        )
+    }
+    if (showProfile) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showProfile = false },
+            title = { Text("Profil Discover") },
+            text = {
+                Column {
+                    Text("Vos avis et préférences restent dans la base locale Discover.")
+                    TextButton(onClick = { exportLauncher.launch("mihon-discover-profile.json") }) {
+                        Text("Exporter le profil")
+                    }
+                    TextButton(onClick = { importLauncher.launch(arrayOf("application/json")) }) {
+                        Text("Importer le profil")
+                    }
+                    TextButton(onClick = recommendations::clearMetadataCache) { Text("Vider le cache AniList") }
+                    TextButton(onClick = { confirmErase = true }) { Text("Effacer mes avis et associations") }
+                    profileMessage?.let { Text(it) }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showProfile = false }) { Text("Fermer") } },
+        )
+    }
+    if (confirmErase) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmErase = false },
+            title = { Text("Effacer les préférences Discover ?") },
+            text = { Text("Les avis, filtres enregistrés et associations personnelles seront supprimés.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    recommendations.clearPersonalData()
+                    confirmErase = false
+                    showProfile = false
+                }) { Text("Effacer") }
+            },
+            dismissButton = { TextButton(onClick = { confirmErase = false }) { Text("Annuler") } },
+        )
+    }
+}
+
+@Composable
+private fun RecommendationPane(
+    state: RecommendationViewModel.State,
+    onRefresh: () -> Unit,
+    onPolicy: (RecommendationEngine.RomancePolicy) -> Unit,
+    onOpen: (AniListMedia) -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
+            RecommendationEngine.RomancePolicy.entries.forEach { policy ->
+                FilterChip(
+                    selected = state.romancePolicy == policy,
+                    onClick = { onPolicy(policy) },
+                    label = {
+                        Text(
+                            when (policy) {
+                                RecommendationEngine.RomancePolicy.TOLERATE -> "Romance tolérée"
+                                RecommendationEngine.RomancePolicy.PENALIZE -> "Romance pénalisée"
+                                RecommendationEngine.RomancePolicy.EXCLUDE_MAIN -> "Romance principale exclue"
+                            },
+                        )
+                    },
+                )
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (state.mode ==
+                    RecommendationEngine.Mode.SIMILAR
+                ) {
+                    "Œuvres similaires"
+                } else {
+                    "Classement local"
+                },
+                Modifier.weight(1f),
+            )
+            TextButton(onClick = onRefresh) { Text("Actualiser") }
+        }
+        state.error?.let { Text(it, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error) }
+        if (state.loading && state.items.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        } else if (state.items.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Aucune recommandation disponible")
+            }
+        } else {
+            LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (state.partial) item { Text("Résultats partiels : AniList n’a pas fourni toutes les pages.") }
+                items(state.items, key = { it.media.id }) { item ->
+                    Card(Modifier.fillMaxWidth().clickable { onOpen(item.media) }) {
+                        Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            AsyncImage(
+                                model = item.media.coverUrl,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp, 92.dp),
+                                contentScale = ContentScale.Crop,
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(item.media.title, style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Affinité ${item.ranking.score.toInt()}/100 · AniList ${item.media.averageScore ?: "—"}/100",
+                                )
+                                item.ranking.reasons.take(2).forEach { reason ->
+                                    Text(reason, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -167,6 +426,12 @@ private fun DiscoverDetail(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onOpenMatch: (SourceMatch) -> Unit,
+    feedback: RecommendationStore.Feedback,
+    onVote: (Int) -> Unit,
+    onStatus: (String) -> Unit,
+    onHide: () -> Unit,
+    onSimilar: () -> Unit,
+    associationError: String?,
 ) {
     var candidate by remember { mutableStateOf<SourceMatch?>(null) }
     Scaffold(
@@ -207,6 +472,53 @@ private fun DiscoverDetail(
             media.alternativeTitles.takeIf { it.isNotEmpty() }?.let { titles ->
                 item { Text(titles.joinToString(" • "), style = MaterialTheme.typography.bodyMedium) }
             }
+            item {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                    FilterChip(selected = feedback.vote > 0, onClick = {
+                        onVote(
+                            if (feedback.vote >
+                                0
+                            ) {
+                                0
+                            } else {
+                                1
+                            },
+                        )
+                    }, label = { Text("J’aime") })
+                    FilterChip(selected = feedback.vote < 0, onClick = {
+                        onVote(
+                            if (feedback.vote <
+                                0
+                            ) {
+                                0
+                            } else {
+                                -1
+                            },
+                        )
+                    }, label = { Text("Je n’aime pas") })
+                    TextButton(onClick = onSimilar) { Text("Œuvres similaires") }
+                }
+            }
+            item {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                    listOf("TO_READ", "READING", "COMPLETED", "PAUSED", "ABANDONED").forEach { status ->
+                        FilterChip(selected = feedback.status == status, onClick = {
+                            onStatus(status)
+                        }, label = { Text(status) })
+                    }
+                    TextButton(onClick = onHide) { Text("Masquer") }
+                }
+            }
+            if (media.tags.isNotEmpty()) {
+                item {
+                    Text(
+                        "Tags : " + media.tags.filterNot {
+                            it.isSpoiler
+                        }.take(12).joinToString { "${it.name} ${it.rank}%" },
+                    )
+                }
+            }
+            item { Text("Votes : ${media.voteCount ?: "inconnu"} · Qualité corrigée selon les votes") }
             media.description?.let { description -> item { Text(description.replace(Regex("<[^>]*>"), "")) } }
             if (media.genres.isNotEmpty()) {
                 item {
@@ -216,16 +528,32 @@ private fun DiscoverDetail(
                 }
             }
             item { HorizontalDivider() }
+            associationError?.let { item { Text(it, color = MaterialTheme.colorScheme.error) } }
             item { Text("Available sources", style = MaterialTheme.typography.titleLarge) }
             when (searchState) {
                 SourceSearchState.Idle -> item { CircularProgressIndicator() }
                 is SourceSearchState.Loading -> {
                     item { Text("Searching sources ${searchState.completed}/${searchState.total}") }
+                    items(searchState.matches, key = { "${it.sourceId}:${it.url}" }) { match ->
+                        SourceMatchRow(match, onClick = {
+                            if (match.confidence == SourceMatch.Confidence.CANDIDATE) {
+                                candidate = match
+                            } else {
+                                onOpenMatch(match)
+                            }
+                        })
+                    }
+                    searchState.errors.forEach { error ->
+                        item { Text(error, color = MaterialTheme.colorScheme.error) }
+                    }
                 }
                 is SourceSearchState.Failed -> {
                     item { Text(searchState.message, color = MaterialTheme.colorScheme.error) }
                 }
                 is SourceSearchState.Complete -> {
+                    searchState.errors.forEach { error ->
+                        item { Text(error, color = MaterialTheme.colorScheme.error) }
+                    }
                     if (searchState.matches.isEmpty()) {
                         item {
                             Text(

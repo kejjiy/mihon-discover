@@ -201,6 +201,7 @@ baselineProfile {
 }
 
 dependencies {
+    implementation(projects.discover.engine)
     baselineProfile(projects.baselineProfile)
 
     implementation(projects.i18n)

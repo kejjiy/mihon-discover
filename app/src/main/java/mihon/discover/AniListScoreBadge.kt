@@ -1,57 +1,45 @@
 package mihon.discover
 
-import android.content.Context
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import kotlinx.serialization.json.Json
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
+import dev.zacsweers.metrox.viewmodel.metroViewModel
+import mihon.discover.recommendation.MangaRecommendationViewModel
+import mihon.discover.recommendation.SimilarScreen
 import tachiyomi.domain.manga.model.Manga
-import kotlin.time.Clock
-import kotlin.time.Duration.Companion.hours
 
 /**
- * Self-contained Mihon-screen integration for score data discovered from this fork's catalogue.
+ * The one composable integration point on Mihon's manga details.
  */
 @Composable
 fun AniListScoreBadge(
     manga: Manga,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val score = remember(manga.source, manga.url) {
-        DiscoverCache.scoreFor(context, manga.source, manga.url)
-    }
-    score?.let {
-        Text(
-            text = "AniList $it/100",
-            style = MaterialTheme.typography.labelLarge,
-            modifier = modifier,
-        )
-    }
-}
-
-internal object DiscoverCache {
-    private const val PREFS_NAME = "discover_catalogue"
-    private const val MISSING_ID = -1L
-
-    fun scoreFor(context: Context, sourceId: Long, url: String): Int? {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val id = prefs.getLong("link:$sourceId:$url", MISSING_ID)
-        if (id == MISSING_ID) return null
-
-        val key = "media:$id"
-        val cachedAt = prefs.getLong("$key:at", 0L)
-        if (Clock.System.now().toEpochMilliseconds() - cachedAt > 24.hours.inWholeMilliseconds) return null
-
-        val encoded = prefs.getString(key, null) ?: return null
-        return runCatching {
-            Json {
-                ignoreUnknownKeys = true
-                explicitNulls = false
-            }.decodeFromString<AniListMedia>(encoded).averageScore
-        }.getOrNull()
+    val model = metroViewModel<MangaRecommendationViewModel>()
+    val state by model.state.collectAsStateWithLifecycle()
+    val navigator = LocalNavigator.currentOrThrow
+    LaunchedEffect(manga.id, manga.url) { model.load(manga) }
+    val id = state.id ?: return
+    Column(modifier) {
+        state.score?.let { Text("AniList $it/100", style = MaterialTheme.typography.labelLarge) }
+        Row {
+            TextButton(onClick = { model.vote(if (state.vote > 0) 0 else 1) }) {
+                Text(if (state.vote > 0) "♥ Aimé" else "♡ J’aime")
+            }
+            TextButton(onClick = { model.vote(if (state.vote < 0) 0 else -1) }) {
+                Text(if (state.vote < 0) "Je n’aime pas ✓" else "Je n’aime pas")
+            }
+            TextButton(onClick = { navigator.push(SimilarScreen(id)) }) { Text("Similaires") }
+        }
     }
 }
