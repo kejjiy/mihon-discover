@@ -124,4 +124,20 @@ class RecommendationEngineTest {
         )
         assertTrue(engine.romanceEvidence(work) >= 0.8)
     }
+
+    @Test
+    fun `library only mode can rank an already known work`() {
+        val known = features(1)
+        val seed = RecommendationEngine.Seed(known, 4.0)
+        assertTrue(engine.rank(listOf(known), listOf(seed), RecommendationEngine.Mode.PERSONAL).isEmpty())
+        assertEquals(
+            known.id,
+            engine.rank(
+                listOf(known),
+                listOf(seed),
+                RecommendationEngine.Mode.PERSONAL,
+                excludeKnown = false,
+            ).single().id,
+        )
+    }
 }

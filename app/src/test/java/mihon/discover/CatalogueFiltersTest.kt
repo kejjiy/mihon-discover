@@ -48,4 +48,23 @@ class CatalogueFiltersTest {
             ),
         )
     }
+
+    @Test
+    fun `manhwa and post apocalyptic filters combine before recommendation ranking`() {
+        val request = CatalogueFilters(countries = setOf("KR"), tags = setOf("Post-Apocalyptic"))
+        val matching = media.copy(
+            countryOfOrigin = "KR",
+            tags = listOf(AniListTag(3, "Post-Apocalyptic", "Theme", 80)),
+        )
+        assertTrue(request.accepts(matching))
+        assertFalse(request.accepts(matching.copy(countryOfOrigin = "JP")))
+        assertFalse(request.accepts(matching.copy(tags = listOf(AniListTag(4, "Survival", "Theme", 90)))))
+        assertFalse(request.accepts(matching.copy(tags = listOf(AniListTag(3, "Post-Apocalyptic", "Theme", 10)))))
+    }
+
+    @Test
+    fun `remote cache key ignores local library preferences`() {
+        val request = CatalogueFilters(countries = setOf("KR"), hideKnownLibrary = true, excludeDisliked = true)
+        assertTrue(request.remoteOnly() == CatalogueFilters(countries = setOf("KR")))
+    }
 }

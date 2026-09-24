@@ -15,6 +15,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +62,7 @@ fun CatalogueFilterDialog(
                     value = value.copy(statuses = value.statuses.toggle(selected))
                 }
                 Text("Origine")
+                Text("JP : manga · KR : manhwa · CN : manhua")
                 ChoiceRow(listOf("JP", "KR", "CN"), value.countries) { selected ->
                     value = value.copy(countries = value.countries.toggle(selected))
                 }
@@ -88,6 +90,10 @@ fun CatalogueFilterDialog(
                     value = value.copy(excludedGenres = it)
                 }
                 TextSetField("Tags inclus (virgules)", value.tags, presetRevision) { value = value.copy(tags = it) }
+                Text("Thèmes rapides")
+                ChoiceRow(listOf("Post-Apocalyptic", "Survival", "Dystopian"), value.tags) {
+                    value = value.copy(tags = value.tags.toggle(it))
+                }
                 BooleanRow("Exiger tous les tags", value.requireAllTags) { value = value.copy(requireAllTags = it) }
                 if (options != null) {
                     OutlinedTextField(
@@ -208,6 +214,11 @@ private fun BooleanRow(label: String, value: Boolean, onChange: (Boolean) -> Uni
 @Composable
 private fun TextSetField(label: String, value: Set<String>, presetRevision: Int, onChange: (Set<String>) -> Unit) {
     var text by remember(presetRevision) { mutableStateOf(value.joinToString(", ")) }
+    LaunchedEffect(value) {
+        if (text.split(',').map(String::trim).filter(String::isNotEmpty).toSet() != value) {
+            text = value.joinToString(", ")
+        }
+    }
     OutlinedTextField(
         value = text,
         onValueChange = { input ->

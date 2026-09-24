@@ -23,3 +23,8 @@ Candidate collection samples AniList's trending, popular, rated, recent and rele
 This is a bounded pool, not a complete crawl of AniList. Offline ranking uses the last cached
 pool; it cannot discover a new work until AniList is reachable. Source matching still considers
 only installed and enabled extensions, with manual confirmation for ambiguous results.
+
+Explorer, For You and Discovery share one catalogue filter selection and the same saved presets.
+Recommendations first fetch AniList candidates under the selected public filters (for example,
+`KR` plus `Post-Apocalyptic`), then apply the same predicate to cached candidates before local
+ranking. Library and feedback filters are evaluated from Mihon's local data in all three modes.

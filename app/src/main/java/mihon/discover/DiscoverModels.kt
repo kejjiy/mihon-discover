@@ -29,6 +29,7 @@ data class AniListMedia(
     val endYear: Int? = null,
     val source: String? = null,
     val isLicensed: Boolean? = null,
+    val isAdult: Boolean? = null,
 )
 
 @Immutable
@@ -77,22 +78,48 @@ data class CatalogueFilters(
     val excludeDisliked: Boolean = false,
     val excludeAdult: Boolean = true,
 ) {
-    fun accepts(media: AniListMedia): Boolean =
-        (minVotes == null || (media.voteCount ?: 0) >= minVotes) &&
-            (minFavourites == null || (media.favourites ?: 0) >= minFavourites) &&
+    /** The same predicate is used for cached recommendations and for AniList catalogue pages. */
+    fun accepts(media: AniListMedia): Boolean {
+        val visibleTags = media.tags.filterNot { it.isSpoiler }
+        val rankedTags = visibleTags.filter { it.rank >= minimumTagRank }
+        val tagNames = rankedTags.mapTo(mutableSetOf()) { it.name }
+        val quality = RecommendationEngine().quality(media.meanScore ?: media.averageScore, media.voteCount)
+        return (formats.isEmpty() || media.format in formats) &&
+            (statuses.isEmpty() || media.status in statuses) &&
+            (countries.isEmpty() || media.countryOfOrigin in countries) &&
             (
-                minQuality == null ||
-                    (
-                        RecommendationEngine().quality(media.meanScore ?: media.averageScore, media.voteCount)
-                            ?: 0.0
-                        ) * 100 >= minQuality
+                genres.isEmpty() ||
+                    if (requireAllGenres) media.genres.containsAll(genres) else media.genres.any { it in genres }
                 ) &&
+            media.genres.none { it in excludedGenres } &&
+            (tags.isEmpty() || if (requireAllTags) tagNames.containsAll(tags) else tagNames.any { it in tags }) &&
+            visibleTags.none { it.name in excludedTags } &&
+            (tagCategories.isEmpty() || rankedTags.any { it.category in tagCategories }) &&
+            (origins.isEmpty() || media.source in origins) &&
+            (minScore == null || (media.averageScore ?: -1) >= minScore) &&
+            (minPopularity == null || (media.popularity ?: -1) >= minPopularity) &&
+            (minVotes == null || (media.voteCount ?: -1) >= minVotes) &&
+            (minFavourites == null || (media.favourites ?: -1) >= minFavourites) &&
+            (minQuality == null || (quality ?: -1.0) * 100 >= minQuality) &&
+            (startYear == null || (media.startDate ?: -1) >= startYear) &&
             (endYear == null || (media.startDate ?: Int.MAX_VALUE) <= endYear) &&
-            (!requireAllGenres || media.genres.containsAll(genres)) &&
-            (!requireAllTags || media.tags.map { it.name }.containsAll(tags)) &&
-            (!longStrip || media.tags.any { it.name == "Long Strip" }) &&
-            (!fullColor || media.tags.any { it.name == "Full Color" }) &&
+            (minChapters == null || (media.chapters ?: -1) >= minChapters) &&
+            (maxChapters == null || (media.chapters ?: Int.MAX_VALUE) <= maxChapters) &&
+            (minVolumes == null || (media.volumes ?: -1) >= minVolumes) &&
+            (!longStrip || visibleTags.any { it.name == "Long Strip" }) &&
+            (!fullColor || visibleTags.any { it.name == "Full Color" }) &&
+            (isLicensed == null || media.isLicensed == isLicensed) &&
+            (!excludeAdult || media.isAdult != true) &&
             (!excludeMainRomance || RecommendationEngine().romanceEvidence(media.features()) < 0.8)
+    }
+
+    fun remoteOnly(): CatalogueFilters = copy(
+        hideKnownLibrary = false,
+        onlyKnownLibrary = false,
+        hideKnownStarted = false,
+        onlyLiked = false,
+        excludeDisliked = false,
+    )
 }
 
 enum class DiscoverSort(val label: String, val sort: String) {

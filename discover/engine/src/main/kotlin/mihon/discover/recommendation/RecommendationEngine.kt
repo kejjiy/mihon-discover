@@ -53,9 +53,10 @@ class RecommendationEngine {
         mode: Mode,
         romancePolicy: RomancePolicy = RomancePolicy.PENALIZE,
         excluded: Set<Long> = emptySet(),
+        excludeKnown: Boolean = true,
         currentYear: Int = java.time.Year.now().value,
     ): List<Ranked> {
-        val known = seeds.mapTo(mutableSetOf()) { it.features.id } + excluded
+        val known = (if (excludeKnown) seeds.mapTo(mutableSetOf()) { it.features.id } else emptySet()) + excluded
         val positive = seeds.filter { it.weight > 0 }.sortedByDescending { it.weight }.take(MAX_SEEDS)
         val negative = seeds.filter { it.weight < 0 }.sortedBy { it.weight }.take(MAX_SEEDS)
         val scored = candidates.asSequence().filter { it.id !in known }.distinctBy { it.id }.mapNotNull { item ->

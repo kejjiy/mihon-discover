@@ -104,12 +104,12 @@ class AnilistCatalogApi(
             strings("tagCategories", filters.tagCategories)
             strings("origins", filters.origins)
             append(",\"minimumTagRank\":${filters.minimumTagRank.coerceIn(0, 100)}")
-            filters.minScore?.let { append(",\"minScore\":${it.coerceIn(0, 100)}") }
-            filters.minPopularity?.let { append(",\"minPopularity\":${it.coerceAtLeast(0)}") }
-            filters.startYear?.let { append(",\"startAfter\":${it * 10000}") }
-            filters.minChapters?.let { append(",\"chaptersAfter\":${it.coerceAtLeast(0)}") }
-            filters.maxChapters?.let { append(",\"chaptersBefore\":${it.coerceAtLeast(0)}") }
-            filters.minVolumes?.let { append(",\"volumesAfter\":${it.coerceAtLeast(0)}") }
+            filters.minScore?.let { append(",\"minScore\":${it.coerceIn(0, 100) - 1}") }
+            filters.minPopularity?.let { append(",\"minPopularity\":${it.coerceAtLeast(0) - 1}") }
+            filters.startYear?.let { append(",\"startAfter\":${(it - 1) * 10000 + 1231}") }
+            filters.minChapters?.let { append(",\"chaptersAfter\":${it.coerceAtLeast(0) - 1}") }
+            filters.maxChapters?.let { append(",\"chaptersBefore\":${it.coerceAtLeast(0) + 1}") }
+            filters.minVolumes?.let { append(",\"volumesAfter\":${it.coerceAtLeast(0) - 1}") }
             filters.isLicensed?.let { append(",\"licensed\":$it") }
             if (filters.excludeAdult) append(",\"adult\":false")
             append('}')
@@ -231,6 +231,7 @@ class AnilistCatalogApi(
             endYear = item["endDate"]?.jsonObject?.get("year").int(),
             source = item["source"].text(),
             isLicensed = item["isLicensed"]?.jsonPrimitive?.content?.toBooleanStrictOrNull(),
+            isAdult = item["isAdult"]?.jsonPrimitive?.content?.toBooleanStrictOrNull(),
         )
     }
 
@@ -257,7 +258,7 @@ class AnilistCatalogApi(
         const val FIELDS = """
             id title { userPreferred romaji english native } synonyms coverImage { large } description
             genres status popularity averageScore meanScore favourites stats { scoreDistribution { amount } }
-            chapters volumes startDate { year } endDate { year } format countryOfOrigin source isLicensed
+            chapters volumes startDate { year } endDate { year } format countryOfOrigin source isLicensed isAdult
             tags { id name category rank isMediaSpoiler isGeneralSpoiler }
         """
         const val BROWSE_QUERY = """

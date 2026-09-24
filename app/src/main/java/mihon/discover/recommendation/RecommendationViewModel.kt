@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import mihon.discover.AniListMedia
 import mihon.discover.AnilistCatalogApi
 import mihon.discover.CatalogueFilters
+import mihon.discover.CatalogueLocalFilters
 import mihon.discover.DiscoverSort
 import mihon.discover.DiscoverStore
 import tachiyomi.core.common.util.lang.launchIO
@@ -39,6 +40,7 @@ class RecommendationViewModel(
     private val historyRepository: HistoryRepository,
     private val trackRepository: TrackRepository,
     private val trackerManager: TrackerManager,
+    private val localFilters: CatalogueLocalFilters,
 ) : ViewModel() {
     data class Item(val media: AniListMedia, val ranking: RecommendationEngine.Ranked)
     data class State(
@@ -50,6 +52,7 @@ class RecommendationViewModel(
         val selected: AniListMedia? = null,
         val feedback: RecommendationStore.Feedback = RecommendationStore.Feedback(0, null, false),
         val romancePolicy: RecommendationEngine.RomancePolicy = RecommendationEngine.RomancePolicy.PENALIZE,
+        val filters: CatalogueFilters = CatalogueFilters(),
     )
 
     private val engine = RecommendationEngine()
@@ -60,6 +63,12 @@ class RecommendationViewModel(
     fun setMode(mode: RecommendationEngine.Mode) {
         mutableState.update { it.copy(mode = mode, selected = null) }
         refresh()
+    }
+
+    fun setFilters(filters: CatalogueFilters, refreshNow: Boolean = true) {
+        if (state.value.filters == filters) return
+        mutableState.update { it.copy(filters = filters) }
+        if (refreshNow) refresh()
     }
 
     fun similar(media: AniListMedia) {
@@ -152,33 +161,100 @@ class RecommendationViewModel(
                 } else {
                     localSeeds()
                 }
-                val candidates = store.recentMedia().associateByTo(linkedMapOf()) { it.id }
+                val filters = snapshot.filters
+                val remoteFilters = filters.remoteOnly()
+                val local = localFilters.snapshot(filters)
+                val candidates = store.recentMedia(2000).associateByTo(linkedMapOf()) { it.id }
+                val freshIds = linkedSetOf<Long>()
+                if (filters.onlyKnownLibrary || filters.onlyLiked) {
+                    (local.library + local.liked).forEach { id ->
+                        (store.getMedia(id) ?: mediaStore.getMedia(id))?.let { candidates[id] = it }
+                    }
+                }
+                val feedback = store.allFeedback()
+                val excluded = feedback.filterValues { it.hidden || it.vote < 0 }.keys +
+                    listOfNotNull(snapshot.selected?.id.takeIf { snapshot.mode == RecommendationEngine.Mode.SIMILAR })
+                fun publish(partial: Boolean, loading: Boolean) {
+                    val eligible = (
+                        freshIds.asSequence().mapNotNull { candidates[it] } +
+                            candidates.values.asSequence().filter { it.id !in freshIds }
+                        )
+                        .filter(filters::accepts)
+                        .filter { localFilters.accepts(it.id, filters, local) }
+                        .take(500)
+                        .toList()
+                    val ranked = engine.rank(
+                        eligible.map { it.features() },
+                        seeds,
+                        snapshot.mode,
+                        store.romancePolicy(),
+                        excluded,
+                        excludeKnown = !(filters.onlyKnownLibrary || filters.onlyLiked),
+                    )
+                    val byId = eligible.associateBy { it.id }
+                    mutableState.update {
+                        it.copy(
+                            items = ranked.mapNotNull { rank -> byId[rank.id]?.let { media -> Item(media, rank) } },
+                            romancePolicy = store.romancePolicy(),
+                            partial = partial,
+                            loading = loading,
+                            error = if (!loading && partial &&
+                                ranked.isEmpty()
+                            ) {
+                                "AniList indisponible ou aucun résultat en cache"
+                            } else {
+                                null
+                            },
+                        )
+                    }
+                }
+                publish(partial = false, loading = true)
                 var partial = false
                 val searches = buildList {
-                    add(DiscoverSort.TRENDING to CatalogueFilters())
-                    add(DiscoverSort.POPULAR to CatalogueFilters())
-                    add(DiscoverSort.TOP_RATED to CatalogueFilters())
-                    add(DiscoverSort.NEW_RELEASES to CatalogueFilters())
-                    if (snapshot.mode != RecommendationEngine.Mode.SIMILAR) {
+                    add(DiscoverSort.POPULAR to remoteFilters)
+                    add(DiscoverSort.TRENDING to remoteFilters)
+                    add(DiscoverSort.TOP_RATED to remoteFilters)
+                    add(DiscoverSort.NEW_RELEASES to remoteFilters)
+                    if (remoteFilters.tags.isEmpty() && snapshot.mode != RecommendationEngine.Mode.SIMILAR) {
                         seeds.filter { it.weight > 0 }
                             .flatMap { it.features.tags.entries }
                             .groupBy { it.key }
                             .mapValues { (_, tags) -> tags.sumOf { it.value } }
                             .entries.sortedByDescending { it.value }.take(3)
-                            .forEach { add(DiscoverSort.POPULAR to CatalogueFilters(tags = setOf(it.key))) }
-                    } else {
+                            .forEach { add(DiscoverSort.POPULAR to remoteFilters.copy(tags = setOf(it.key))) }
+                    } else if (remoteFilters.tags.isEmpty()) {
                         snapshot.selected?.tags?.filterNot { it.isSpoiler }?.sortedByDescending { it.rank }
-                            ?.take(3)?.forEach { add(DiscoverSort.POPULAR to CatalogueFilters(tags = setOf(it.name))) }
+                            ?.take(3)?.forEach {
+                                add(DiscoverSort.POPULAR to remoteFilters.copy(tags = setOf(it.name)))
+                            }
                     }
                 }
-                val lastRefresh = store.option("recommendation_catalogue_at")?.toLongOrNull() ?: 0L
-                if (force || candidates.size < 50 || System.currentTimeMillis() - lastRefresh > 86_400_000L) {
-                    for ((sort, filters) in searches) {
+                val cacheKey = "recommendation_catalogue_at:${remoteFilters.hashCode()}"
+                val lastRefresh = store.option(cacheKey)?.toLongOrNull() ?: 0L
+                if (force || candidates.values.count(remoteFilters::accepts) < 50 ||
+                    System.currentTimeMillis() - lastRefresh > 86_400_000L
+                ) {
+                    var publishedRemote = false
+                    for ((sort, searchFilters) in searches) {
                         try {
-                            val page = api.browse(1, "", sort, filters, perPage = 50)
-                            page.items.forEach { media ->
-                                candidates[media.id] = media
-                                store.putMedia(media)
+                            var pageNumber = 1
+                            var hasNextPage: Boolean
+                            do {
+                                val page = api.browse(pageNumber, "", sort, searchFilters, perPage = 50)
+                                hasNextPage = page.hasNextPage
+                                page.items.forEach { media ->
+                                    candidates[media.id] = media
+                                    freshIds += media.id
+                                    store.putMedia(media)
+                                }
+                                pageNumber++
+                            } while (hasNextPage && pageNumber <= 2 && candidates.values.count(filters::accepts) < 50)
+                            if (!publishedRemote && freshIds.isNotEmpty()) {
+                                publish(partial = partial, loading = true)
+                                publishedRemote = true
+                            }
+                            if (candidates.values.count(filters::accepts) >= 75) {
+                                break
                             }
                         } catch (e: CancellationException) {
                             throw e
@@ -187,25 +263,9 @@ class RecommendationViewModel(
                         }
                     }
                     store.pruneMedia()
-                    if (!partial) store.setOption("recommendation_catalogue_at", System.currentTimeMillis().toString())
+                    if (!partial) store.setOption(cacheKey, System.currentTimeMillis().toString())
                 }
-                val feedback = store.allFeedback()
-                val excluded = feedback.filterValues { it.hidden || it.vote < 0 }.keys
-                val ranked = engine.rank(
-                    candidates.values.map { it.features() },
-                    seeds,
-                    snapshot.mode,
-                    store.romancePolicy(),
-                    excluded,
-                )
-                mutableState.update {
-                    it.copy(
-                        items = ranked.mapNotNull { rank -> candidates[rank.id]?.let { media -> Item(media, rank) } },
-                        romancePolicy = store.romancePolicy(),
-                        partial = partial,
-                        loading = false,
-                    )
-                }
+                publish(partial = partial, loading = false)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -8,7 +8,6 @@ import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.SManga
 import kotlinx.coroutines.CancellationException
@@ -22,7 +21,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -34,7 +32,6 @@ import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.service.SourceManager
-import tachiyomi.domain.track.repository.TrackRepository
 import tachiyomi.source.local.isLocal
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
@@ -50,8 +47,7 @@ class DiscoverViewModel(
     private val sourcePreferences: SourcePreferences,
     private val networkToLocalManga: NetworkToLocalManga,
     private val mangaRepository: MangaRepository,
-    private val trackRepository: TrackRepository,
-    private val trackerManager: TrackerManager,
+    private val localFilters: CatalogueLocalFilters,
 ) : ViewModel() {
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
@@ -103,20 +99,14 @@ class DiscoverViewModel(
             val before = state.value
             _state.update { it.copy(loading = true, error = null, lastLoadedQuery = before.query) }
             runCatching {
-                val local = localFilterSnapshot(before.filters)
+                val local = localFilters.snapshot(before.filters)
                 val found = mutableListOf<AniListMedia>()
                 var currentPage = page
                 var hasNext = true
                 var scanned = 0
                 do {
                     val result = api.browse(currentPage, before.query, before.sort, before.filters)
-                    found += result.items.filter { media ->
-                        (!before.filters.hideKnownLibrary || media.id !in local.library) &&
-                            (!before.filters.onlyKnownLibrary || media.id in local.library) &&
-                            (!before.filters.hideKnownStarted || media.id !in local.started) &&
-                            (!before.filters.onlyLiked || recommendationStore.feedback(media.id).vote > 0) &&
-                            (!before.filters.excludeDisliked || recommendationStore.feedback(media.id).vote >= 0)
-                    }
+                    found += result.items.filter { media -> localFilters.accepts(media.id, before.filters, local) }
                     hasNext = result.hasNextPage
                     currentPage++
                     scanned++
@@ -149,29 +139,6 @@ class DiscoverViewModel(
                     }
                 }
         }
-    }
-
-    private data class LocalFilterSnapshot(val library: Set<Long>, val started: Set<Long>)
-
-    private suspend fun localFilterSnapshot(filters: CatalogueFilters): LocalFilterSnapshot {
-        if (!filters.hideKnownLibrary && !filters.onlyKnownLibrary && !filters.hideKnownStarted) {
-            return LocalFilterSnapshot(emptySet(), emptySet())
-        }
-        val tracks = trackRepository.getTracksAsFlow().first()
-            .filter { it.trackerId == trackerManager.aniList.id }
-            .associate { it.mangaId to it.remoteId }
-        val library = mutableSetOf<Long>()
-        val started = mutableSetOf<Long>()
-        mangaRepository.getLibraryManga().forEach { item ->
-            val id = tracks[item.manga.id]
-                ?: recommendationStore.linkedId(item.manga.source, item.manga.url)
-                ?: store.linkedMediaId(item.manga.source, item.manga.url)
-            if (id != null) {
-                library += id
-                if (item.readCount > 0) started += id
-            }
-        }
-        return LocalFilterSnapshot(library, started)
     }
 
     fun openMedia(media: AniListMedia) {

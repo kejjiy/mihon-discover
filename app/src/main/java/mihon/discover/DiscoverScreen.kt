@@ -179,6 +179,7 @@ fun DiscoverScreen(initialSimilarId: Long? = null) {
                     selected = showingRecommendations && recommendationState.mode == RecommendationEngine.Mode.PERSONAL,
                     onClick = {
                         showingRecommendations = true
+                        recommendations.setFilters(state.filters, refreshNow = false)
                         recommendations.setMode(RecommendationEngine.Mode.PERSONAL)
                     },
                     label = { Text("Pour toi") },
@@ -187,15 +188,29 @@ fun DiscoverScreen(initialSimilarId: Long? = null) {
                     selected = showingRecommendations && recommendationState.mode == RecommendationEngine.Mode.EXPLORE,
                     onClick = {
                         showingRecommendations = true
+                        recommendations.setFilters(state.filters, refreshNow = false)
                         recommendations.setMode(RecommendationEngine.Mode.EXPLORE)
                     },
                     label = { Text("Découverte") },
                 )
+                if (!showingRecommendations) {
+                    AssistChip(
+                        onClick = {
+                            viewModel.loadPresets()
+                            showFilters = true
+                        },
+                        label = { Text(if (state.filters == CatalogueFilters()) "Filtres" else "Filtres • actifs") },
+                    )
+                }
             }
             if (showingRecommendations) {
                 RecommendationPane(
                     state = recommendationState,
                     onRefresh = { recommendations.refresh(force = true) },
+                    onFilters = {
+                        viewModel.loadPresets()
+                        showFilters = true
+                    },
                     onPolicy = recommendations::setRomancePolicy,
                     onOpen = viewModel::openMedia,
                 )
@@ -220,10 +235,6 @@ fun DiscoverScreen(initialSimilarId: Long? = null) {
                         label = { Text(sort.label) },
                     )
                 }
-                AssistChip(onClick = {
-                    viewModel.loadPresets()
-                    showFilters = true
-                }, label = { Text("Filtres") })
             }
             state.error?.let { error ->
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -279,6 +290,7 @@ fun DiscoverScreen(initialSimilarId: Long? = null) {
             options = state.filterOptions,
             onApply = {
                 viewModel.setFilters(it)
+                recommendations.setFilters(it, refreshNow = showingRecommendations)
                 showFilters = false
             },
             onSave = viewModel::savePreset,
@@ -327,10 +339,29 @@ fun DiscoverScreen(initialSimilarId: Long? = null) {
 private fun RecommendationPane(
     state: RecommendationViewModel.State,
     onRefresh: () -> Unit,
+    onFilters: () -> Unit,
     onPolicy: (RecommendationEngine.RomancePolicy) -> Unit,
     onOpen: (AniListMedia) -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
+        if (state.filters != CatalogueFilters()) {
+            val selected = buildList {
+                addAll(state.filters.countries.map { if (it == "KR") "Manhwa (KR)" else it })
+                addAll(state.filters.genres)
+                addAll(state.filters.tags)
+            }
+            Text(
+                if (selected.isEmpty()) {
+                    "Filtres AniList actifs"
+                } else {
+                    "Filtres : ${selected.take(
+                        4,
+                    ).joinToString(" · ")}"
+                },
+                Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
             RecommendationEngine.RomancePolicy.entries.forEach { policy ->
                 FilterChip(
@@ -359,6 +390,7 @@ private fun RecommendationPane(
                 },
                 Modifier.weight(1f),
             )
+            TextButton(onClick = onFilters) { Text("Filtres") }
             TextButton(onClick = onRefresh) { Text("Actualiser") }
         }
         state.error?.let { Text(it, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error) }
@@ -366,7 +398,13 @@ private fun RecommendationPane(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else if (state.items.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Aucune recommandation disponible")
+                Text(
+                    if (state.filters == CatalogueFilters()) {
+                        "Aucune recommandation disponible"
+                    } else {
+                        "Aucune œuvre ne correspond à ces filtres. Élargis la sélection ou actualise."
+                    },
+                )
             }
         } else {
             LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
