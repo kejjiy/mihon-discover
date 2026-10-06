@@ -49,14 +49,18 @@ async function main() {
     return result.result.value;
   };
   const until = async expression => {
+    // A silent install can leave Chromium's window occluded. Request a painted
+    // frame so visibility-driven page loaders run before inspecting the UI.
+    await command('Page.captureScreenshot', { format: 'png' });
     for (let attempt = 0; attempt < 50; attempt++) { if (await evaluate(expression)) return; await wait(100); }
-    throw Error(`Timed out waiting for: ${expression}; ${JSON.stringify(await evaluate('({fullscreen:(await window.mihon.state()).fullscreen,rendererFullscreen:state.fullscreen,mode:document.getElementById("reader-mode").value,toast:document.getElementById("toast").textContent,failures:' + JSON.stringify(failures) + '})'))}`);
+    const failureShot = await command('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(path.join(output, 'smoke-failure.png'), Buffer.from(failureShot.data, 'base64'));
+    throw Error(`Timed out waiting for: ${expression}; ${JSON.stringify(await evaluate('({fullscreen:(await window.mihon.state()).fullscreen,rendererFullscreen:state.fullscreen,mode:document.getElementById("reader-mode").value,toast:document.getElementById("toast").textContent,pages:[...document.querySelectorAll(".webtoon-page")].map(n=>({index:n.dataset.index,loaded:n.dataset.loaded,loading:n.dataset.loading,images:[...n.querySelectorAll("img")].map(i=>({width:i.naturalWidth,complete:i.complete}))})),failures:' + JSON.stringify(failures) + '})'))}`);
   };
   const key = async (key, code) => {
     await command('Input.dispatchKeyEvent', { type: 'keyDown', key, code });
     await command('Input.dispatchKeyEvent', { type: 'keyUp', key, code });
   };
-  await command('Runtime.enable'); await command('Page.enable'); await wait(400);
+  await command('Runtime.enable'); await command('Page.enable'); await command('Page.bringToFront'); await wait(400);
   assert.equal(await evaluate('document.querySelectorAll(".book").length'), 1);
   await evaluate('document.querySelector(".book").click()'); await wait(100);
   assert.equal(await evaluate('document.querySelectorAll(".chapter-row").length'), 1);

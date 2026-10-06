@@ -1,6 +1,6 @@
 {
   "name": "mihon-discover-windows",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Mihon Discover — lecteur Windows et synchronisation locale",
   "author": "Mihon Discover contributors",
@@ -10,7 +10,10 @@
     "start": "electron .",
     "test": "node --test test/*.test.cjs",
     "smoke": "node scripts/smoke.cjs",
-    "dist": "electron-builder --win portable --x64"
+    "dist": "electron-builder --win nsis portable --x64 --publish never",
+    "dist:installer": "electron-builder --win nsis --x64 --publish never",
+    "dist:portable": "electron-builder --win portable --x64 --publish never",
+    "smoke:installer": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-installer.ps1"
   },
   "dependencies": { "yauzl": "^3.2.0" },
   "devDependencies": { "electron": "44.5.1", "electron-builder": "^26.0.12" },
@@ -18,6 +21,25 @@
     "appId": "io.github.kejjiy.mihondiscover.windows",
     "productName": "Mihon Discover",
     "files": ["src/**/*", "LICENSE", "package.json"],
-    "win": { "target": "portable", "icon": "assets/icon.ico", "artifactName": "Mihon-Discover-Windows-${version}.${ext}" }
+    "win": { "target": ["nsis", "portable"], "icon": "assets/icon.ico" },
+    "nsis": {
+      "artifactName": "Mihon-Discover-Windows-${version}-Setup-x64.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Mihon Discover",
+      "uninstallDisplayName": "Mihon Discover",
+      "deleteAppDataOnUninstall": false,
+      "packElevateHelper": false,
+      "differentialPackage": false,
+      "installerLanguages": ["fr_FR", "en_US"],
+      "language": "1036",
+      "include": "assets/installer.nsh",
+      "license": "LICENSE"
+    },
+    "portable": { "artifactName": "Mihon-Discover-Windows-${version}-Portable-x64.${ext}" }
   }
 }

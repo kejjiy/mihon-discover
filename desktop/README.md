@@ -7,7 +7,17 @@ dans `sync/protocol/`; les données cryptographiques de test communes sont dans
 
 ## Utilisation
 
-1. Lancer l'exécutable portable Windows et installer l'APK Android **de ce fork**.
+Les fichiers d'installation sont disponibles dans les
+[releases du fork](https://github.com/kejjiy/mihon-discover/releases).
+Sur Windows 11 x64, télécharger le fichier `Setup-x64.exe` et suivre l'assistant.
+L'installation concerne l'utilisateur courant, permet de choisir le dossier et
+crée des raccourcis Bureau/menu Démarrer. La version `Portable-x64.exe` peut aussi
+être compilée pour un lancement sans installation.
+
+Pour Android, télécharger l'APK universel de la même release et l'installer
+par-dessus la version précédente de ce fork. La signature Android est conservée.
+
+1. Lancer Mihon Discover sur Windows et installer l'APK Android **de ce fork**.
    Les anciennes versions de l'APK ne disposent pas de ce protocole.
 2. Connecter les appareils au même réseau local. Une liaison Ethernet pour le PC
    et Wi-Fi pour le téléphone convient si le routeur permet leurs échanges.
@@ -137,6 +147,7 @@ npm start
 npm test
 npm run smoke
 npm run dist
+npm run smoke:installer
 ```
 
 `npm run smoke` lance le véritable renderer Electron avec une bibliothèque
@@ -156,6 +167,14 @@ messages rejoués et la révocation. Le parcours sur un **véritable téléphone
 autre appareil du réseau** reste à valider : aucun téléphone n'était connecté à
 l'environnement de développement pendant cette implémentation.
 
-L'exécutable portable est produit dans `desktop/dist/`. Son état persistant reste
-dans `%APPDATA%/mihon-discover-windows/library/`; déplacer l'exécutable ne déplace
-pas la bibliothèque.
+Les exécutables sont produits dans `desktop/dist/` : `Setup-x64.exe` pour
+l'installation et `Portable-x64.exe` pour la version portable. `npm run
+dist:installer` ou `npm run dist:portable` construit un seul format.
+Le test `smoke:installer` effectue une installation/réinstallation dans un dossier
+isolé du dépôt, teste l'app installée et la désinstalle. Il refuse de démarrer si
+une installation réelle de Mihon Discover est déjà présente.
+
+L'état persistant reste dans `%APPDATA%/mihon-discover-windows/library/` pour les
+deux formats ; passer du portable à l'installeur retrouve donc la même bibliothèque.
+Déplacer l'exécutable ne déplace pas la bibliothèque. La désinstallation conserve
+les données et les associations.

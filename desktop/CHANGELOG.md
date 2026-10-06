@@ -1,5 +1,17 @@
 # Versions Windows
 
+## 0.1.2 — 6 octobre 2026
+
+- Installeur Windows 11 x64 avec assistant en français/anglais, choix du dossier,
+  raccourcis Bureau/menu Démarrer et désinstalleur.
+- Installation pour l'utilisateur courant sans demander de droits administrateur.
+- Conservation du dossier de bibliothèque utilisé par les versions portables,
+  ainsi que des données lors de la désinstallation.
+- Packaging séparé pour l'installeur et la version portable ; test de
+  l'installation, de la réinstallation et de la désinstallation.
+- Première release GitHub commune avec l'APK universel Android signé, version 32
+  (`0.20.4-discover.2`), et des sommes de contrôle SHA-256.
+
 ## 0.1.1 — 6 octobre 2026
 
 - Historique synchronisé des chapitres lus ou commencés, trié par date, avec
