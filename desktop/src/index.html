@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: mihon-media: data:; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-src 'none'">
+  <title>Mihon Discover</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="shell" id="shell">
+    <aside>
+      <div class="brand"><span class="brand-icon">M</span><div><strong>Mihon</strong><small>DISCOVER · WINDOWS</small></div></div>
+      <nav aria-label="Navigation principale">
+        <button data-view="library" class="selected"><span>▥</span> Bibliothèque</button>
+        <button data-view="history"><span>◷</span> Historique</button>
+        <button data-view="catalogue"><span>◈</span> Catalogue</button>
+        <button data-view="recommend"><span>✦</span> Pour toi</button>
+        <button data-view="sync"><span>⇄</span> Synchronisation <i id="peer-count"></i></button>
+      </nav>
+      <div class="sidebar-bottom"><span class="platform">Ton espace de lecture</span><p>Bibliothèque locale.<br>Lecture à ton rythme.</p><button id="export" class="subtle">Exporter mes données</button><button id="import-snapshot" class="subtle">Importer une bibliothèque</button><small>Version Windows 0.1.1</small></div>
+    </aside>
+    <main>
+      <header><div><span class="eyebrow" id="eyebrow">TA COLLECTION</span><h1 id="title">Bibliothèque</h1></div><div class="header-actions"><span id="network-badge" class="badge">Réseau désactivé</span><button id="import" class="primary">＋ Importer un CBZ</button><button id="import-folder" class="secondary">Dossier d’images</button></div></header>
+      <div id="content"></div>
+    </main>
+  </div>
+  <section id="reader" hidden aria-label="Lecteur">
+    <div class="reader-toolbar"><button id="reader-back">← Bibliothèque</button><strong id="reader-title"></strong><select id="reader-mode" aria-label="Mode de lecture"><option value="paged">Page par page</option><option value="webtoon">Webtoon</option></select><select id="reader-direction" aria-label="Sens de lecture"><option value="ltr">Gauche → droite</option><option value="rtl">Droite → gauche</option></select><button id="fullscreen" aria-label="Plein écran">⛶</button></div>
+    <div id="page-container" tabindex="-1" aria-label="Pages du chapitre"></div>
+    <div class="reader-footer"><button id="previous">← Précédente</button><label>Page <input id="page-number" type="number" min="1" aria-label="Numéro de page"> <span id="page-total"></span></label><span id="reader-status" role="status"></span><button id="next">Suivante →</button></div>
+  </section>
+  <dialog id="pair-dialog"><span class="eyebrow">ASSOCIATION SÉCURISÉE</span><h2 id="pair-title"></h2><div id="pair-code" class="pair-code"></div><p>Compare ce code avec celui affiché sur l’autre appareil. Accepte seulement si les deux codes sont identiques et si cet appareil t’appartient.</p><p id="pair-status" class="muted">L’association expire après 2 minutes.</p><div class="dialog-actions"><button id="pair-reject" class="secondary">Refuser</button><button id="pair-accept" class="primary">Les codes sont identiques</button></div></dialog>
+  <dialog id="confirm-dialog"><h2 id="confirm-title"></h2><p id="confirm-text"></p><div class="dialog-actions"><button id="confirm-no" class="secondary">Annuler</button><button id="confirm-yes" class="primary">Confirmer</button></div></dialog>
+  <div id="toast" hidden role="status"></div>
+  <script src="renderer.js"></script>
+</body>
+</html>

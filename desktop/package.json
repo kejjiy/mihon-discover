@@ -1,0 +1,23 @@
+{
+  "name": "mihon-discover-windows",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Mihon Discover — lecteur Windows et synchronisation locale",
+  "author": "Mihon Discover contributors",
+  "license": "Apache-2.0",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "smoke": "node scripts/smoke.cjs",
+    "dist": "electron-builder --win portable --x64"
+  },
+  "dependencies": { "yauzl": "^3.2.0" },
+  "devDependencies": { "electron": "44.5.1", "electron-builder": "^26.0.12" },
+  "build": {
+    "appId": "io.github.kejjiy.mihondiscover.windows",
+    "productName": "Mihon Discover",
+    "files": ["src/**/*", "LICENSE", "package.json"],
+    "win": { "target": "portable", "icon": "assets/icon.ico", "artifactName": "Mihon-Discover-Windows-${version}.${ext}" }
+  }
+}

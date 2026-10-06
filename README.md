@@ -18,6 +18,32 @@ Discover and read manga, webtoons, comics, and more – easier than ever on your
 
 ## Download
 
+### Windows 11 et synchronisation locale (ce fork)
+
+Ce fork **Mihon Discover** ajoute un catalogue AniList, des recommandations locales
+et un client **Windows 11**. Android et Windows peuvent découvrir leurs appareils
+sur le réseau local, s'associer avec un code confirmé sur les deux écrans, puis
+synchroniser la bibliothèque, les chapitres et l'historique de lecture.
+
+Le client Windows propose un historique avec reprise à la page sauvegardée,
+l'import de CBZ et un lecteur webtoon sans commandes visibles en plein écran.
+Voir [le guide Windows et Android](desktop/README.md) pour l'installation,
+l'association, la compilation et les limites actuelles.
+
+| Dossier | Rôle |
+| --- | --- |
+| `app/` | App Android ; intégration réseau dans `app/src/main/java/mihon/sync/`. |
+| [`desktop/`](desktop/README.md) | App Windows, lecteur, historique, tests et packaging Electron. |
+| [`sync/`](sync/README.md) | Protocole Kotlin et données de test communes avec Windows. |
+| [`discover/`](discover/README.md) | Moteur de recommandations du fork. |
+
+Les dépendances et sorties de compilation restent locales : `desktop/node_modules/`,
+`desktop/dist/`, `desktop/test-output/` et les dossiers `build/` sont ignorés par Git.
+Les APK locaux sont également exclus. Les versions Windows sont documentées dans
+le [journal des changements](desktop/CHANGELOG.md).
+
+### Projet Android d'origine
+
 [![Mihon Stable](https://img.shields.io/github/release/mihonapp/mihon.svg?maxAge=3600&label=Stable&labelColor=06599d&color=043b69)](https://mihon.app/download)
 [![Mihon Beta](https://img.shields.io/github/v/release/mihonapp/mihon-preview.svg?maxAge=3600&label=Beta&labelColor=2c2c47&color=1c1c39)](https://mihon.app/download)
 

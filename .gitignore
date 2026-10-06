@@ -2,6 +2,8 @@
 .gradle
 .kotlin
 build
+/*.apk
+/*.aab
 
 # IDE files
 *.iml
@@ -12,6 +14,11 @@ build
 # Configuration files
 keystore.properties
 local.properties
+
+# Windows client
+desktop/node_modules/
+desktop/dist/
+desktop/test-output/
 
 # macOS specific files
 .DS_Store
