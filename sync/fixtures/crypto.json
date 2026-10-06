@@ -1,0 +1,20 @@
+{
+  "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "aad": "rpc:android->windows",
+  "plaintext": {
+    "id": "fixture",
+    "payload": {
+      "title": "Lecture privée",
+      "page": 12
+    }
+  },
+  "code": "987773",
+  "envelope": {
+    "iv": "aj6e/pM46M9JNklI",
+    "data": "SiyfllRvK35JzpTRz+r03PiVbTECYdXwG2PS39c6Z+03TKDe45G119/FXire6NJ3641qYEVl8ibxyOf38jFJStBUduI3UEFhhlkqkz78XD0="
+  },
+  "privateKey": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgp9dbFrrXBPw7PbrWhE3fKFpoNy5nGR1y3IZyJzA2mmChRANCAAQ2FXPIaD8wZ/sGnLeDfoeQIVbu4KLFSSvs/7mWL3+tmbEqmWGrC0O8svR2Msl26oWdAUsZpw2Nsojb4N1aCMrp",
+  "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENhVzyGg/MGf7Bpy3g36HkCFW7uCixUkr7P+5li9/rZmxKplhqwtDvLL0djLJduqFnQFLGacNjbKI2+DdWgjK6Q==",
+  "remotePublicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE9Iopw0G8lyR3s6tjvhfVTTzN6Q7tvdTX27XlC9JB07ZclGxUy8ydd+roda0BsbKpJxBirlAX8n+bBlJ2FFO3cQ==",
+  "sharedKey": "g7/PbYy6fTrMzh9V4mjLQ0f92HM6iIpiOyvIEzVcTEI="
+}
