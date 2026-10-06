@@ -20,6 +20,7 @@ import mihon.icons.materialsymbols.rounded.Info
 import mihon.icons.materialsymbols.rounded.QueryStats
 import mihon.icons.materialsymbols.rounded.Settings
 import mihon.icons.materialsymbols.rounded.Storage
+import mihon.icons.materialsymbols.rounded.Sync
 import mihon.icons.materialsymbols.rounded.VolunteerActivism
 import tachiyomi.core.common.Constants
 import tachiyomi.i18n.MR
@@ -39,6 +40,7 @@ fun MoreScreen(
     onClickCategories: () -> Unit,
     onClickStats: () -> Unit,
     onClickDataAndStorage: () -> Unit,
+    onClickLanSync: () -> Unit,
     onClickSettings: () -> Unit,
     onClickSupport: () -> Unit,
     onClickAbout: () -> Unit,
@@ -72,6 +74,15 @@ fun MoreScreen(
             }
 
             item { HorizontalDivider() }
+
+            item {
+                TextPreferenceWidget(
+                    title = "Synchronisation locale",
+                    subtitle = "Associer Windows et Android sur le même réseau",
+                    icon = MaterialSymbols.Rounded.Sync,
+                    onPreferenceClick = onClickLanSync,
+                )
+            }
 
             item {
                 val downloadQueueState = downloadQueueStateProvider()

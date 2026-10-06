@@ -36,8 +36,8 @@ android {
     defaultConfig {
         applicationId = "io.github.kejjiy.mihondiscover"
 
-        versionCode = 30
-        versionName = "0.20.4"
+        versionCode = 32
+        versionName = "0.20.4-discover.2"
 
         buildConfigField("boolean", "TELEMETRY_INCLUDED", "${Config.includeTelemetry}")
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
@@ -202,6 +202,7 @@ baselineProfile {
 
 dependencies {
     implementation(projects.discover.engine)
+    implementation(projects.sync.protocol)
     baselineProfile(projects.baselineProfile)
 
     implementation(projects.i18n)
