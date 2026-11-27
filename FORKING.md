@@ -10,5 +10,12 @@ Keep this fork straightforward to rebase onto `mihonapp/mihon`.
 - Persist Discover-only data in the feature's private store. Do not add tables or migrations to
   Mihon's SQLDelight database unless an upstream-compatible contract makes that unavoidable.
 - Use existing Gradle properties for fork build policy rather than changing shared build logic.
-- Before feature work, fetch `upstream/main`, rebase this branch, and resolve integration changes
-  at the narrow adapter boundaries.
+- Integrate stable tags from `mihonapp/mihon` into the published
+  `feature/local-recommendations` branch with a merge. Preserve its history and
+  resolve integration changes at the narrow adapter boundaries.
+- Keep the application ID and signing certificate across Android updates, and
+  advance the Android version code. Verify Android builds, Discover tests, and
+  protocol compatibility with Windows before publishing an APK.
+- The Codex maintenance task watches stable upstream releases and prepares an
+  integration PR after checks pass. Review data migrations and approve releases
+  separately.

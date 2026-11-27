@@ -24,7 +24,6 @@ import mihon.discover.CatalogueFilters
 import mihon.discover.CatalogueLocalFilters
 import mihon.discover.DiscoverSort
 import mihon.discover.DiscoverStore
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.track.repository.TrackRepository
@@ -77,22 +76,22 @@ class RecommendationViewModel(
     }
 
     fun similarById(id: Long) {
-        viewModelScope.launchIO {
-            val media = store.getMedia(id) ?: mediaStore.getMedia(id) ?: api.media(id) ?: return@launchIO
+        viewModelScope.launch(Dispatchers.IO) {
+            val media = store.getMedia(id) ?: mediaStore.getMedia(id) ?: api.media(id) ?: return@launch
             store.putMedia(media)
             similar(media)
         }
     }
 
     fun select(media: AniListMedia) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             mutableState.update { it.copy(selected = media, feedback = store.feedback(media.id)) }
         }
     }
 
     fun vote(value: Int) {
         val media = state.value.selected ?: return
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             store.setFeedback(media.id, vote = value)
             mutableState.update { it.copy(feedback = store.feedback(media.id)) }
             refresh()
@@ -101,7 +100,7 @@ class RecommendationViewModel(
 
     fun setReadingStatus(status: String) {
         val media = state.value.selected ?: return
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             store.setFeedback(media.id, status = status)
             mutableState.update { it.copy(feedback = store.feedback(media.id)) }
             refresh()
@@ -110,7 +109,7 @@ class RecommendationViewModel(
 
     fun hideSelected() {
         val media = state.value.selected ?: return
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             store.setFeedback(media.id, hidden = true)
             mutableState.update { it.copy(feedback = store.feedback(media.id)) }
             refresh()
@@ -118,7 +117,7 @@ class RecommendationViewModel(
     }
 
     fun setRomancePolicy(value: RecommendationEngine.RomancePolicy) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             store.setRomancePolicy(value.name)
             mutableState.update { it.copy(romancePolicy = value) }
             refresh()
@@ -136,14 +135,14 @@ class RecommendationViewModel(
     }
 
     fun clearMetadataCache() {
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             store.clearMetadataCache()
             refresh(force = true)
         }
     }
 
     fun clearPersonalData() {
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             store.clearPersonalData()
             refresh()
         }
@@ -151,7 +150,7 @@ class RecommendationViewModel(
 
     fun refresh(force: Boolean = false) {
         job?.cancel()
-        job = viewModelScope.launchIO {
+        job = viewModelScope.launch(Dispatchers.IO) {
             mutableState.update { it.copy(loading = true, error = null) }
             try {
                 store.migrateLegacyCache()
@@ -310,7 +309,7 @@ class RecommendationViewModel(
                         0.75 * (entry.readCount.toDouble() / entry.totalChapters.coerceAtLeast(1)).coerceIn(0.0, 1.0)
             }
             val readHistory = history[manga.id].orEmpty()
-            val latestRead = readHistory.maxOfOrNull { it.readAt?.time ?: 0L } ?: 0L
+            val latestRead = readHistory.maxOfOrNull { it.readAt?.toEpochMilliseconds() ?: 0L } ?: 0L
             val recent = latestRead > System.currentTimeMillis() - 90L * 86_400_000L
             val historyWeight = if (recent && readHistory.isNotEmpty()) 0.35 else 0.0
             val aniListStatus = aniListTrack?.status

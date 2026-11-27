@@ -30,7 +30,7 @@ l'import de CBZ et un lecteur webtoon sans commandes visibles en plein écran.
 Voir [le guide Windows et Android](desktop/README.md) pour l'installation,
 l'association, la compilation et les limites actuelles.
 
-**Télécharger les apps : [release Windows et Android](https://github.com/kejjiy/mihon-discover/releases/tag/discover-v0.1.2)**
+**Télécharger les apps : [release Windows et Android](https://github.com/kejjiy/mihon-discover/releases/tag/discover-v0.21.3)**
 — installeur Windows 11 x64, APK universel Android et sommes de contrôle.
 
 | Dossier | Rôle |

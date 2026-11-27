@@ -24,7 +24,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import mihon.discover.recommendation.RecommendationStore
-import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.category.model.NewCategory
 import tachiyomi.domain.category.repository.CategoryRepository
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.chapter.model.ChapterUpdate
@@ -32,13 +32,14 @@ import tachiyomi.domain.chapter.repository.ChapterRepository
 import tachiyomi.domain.history.model.HistoryUpdate
 import tachiyomi.domain.history.repository.HistoryRepository
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.manga.model.MangaRemoteUpdate
 import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.service.SourceManager
 import java.io.File
 import java.io.InputStream
-import java.util.Date
 import java.util.UUID
+import kotlin.time.Instant
 
 internal fun JsonObject.string(key: String, default: String = "") = this[key]?.jsonPrimitive?.content ?: default
 internal fun JsonObject.number(key: String, default: Long = 0) = this[key]?.jsonPrimitive?.longOrNull ?: default
@@ -143,11 +144,11 @@ class LanLibraryAdapter(
                         put("chapterNumber", chapter.chapterNumber)
                         put("scanlator", chapter.scanlator ?: "")
                         put("sourceOrder", chapter.sourceOrder)
-                        put("dateUpload", chapter.dateUpload)
+                        put("dateUpload", chapter.dateUpload?.toEpochMilliseconds() ?: 0L)
                         put("read", chapter.read)
                         put("bookmark", chapter.bookmark)
                         put("lastPageRead", chapter.lastPageRead)
-                        put("readAt", recent[chapter.id]?.readAt?.time ?: 0)
+                        put("readAt", recent[chapter.id]?.readAt?.toEpochMilliseconds() ?: 0L)
                     },
                 )
             }
@@ -194,6 +195,7 @@ class LanLibraryAdapter(
         require(incoming.version == SYNC_VERSION)
         require(incoming.records.map { it.key }.distinct().size == incoming.records.size)
         val now = System.currentTimeMillis()
+        val mergedAt = Instant.fromEpochMilliseconds(now)
         incoming.records.forEach {
             require(it.kind in setOf("manga", "chapter", "feedback", "link", "option"))
             require(it.modifiedAt <= now + 300_000)
@@ -220,28 +222,42 @@ class LanLibraryAdapter(
                             url = v.string("url"),
                             title = v.string("title"),
                             initialized = true,
-                            dateAdded = now,
                         ),
                     ),
                 ).single()
             }
-            mangas.update(
-                MangaUpdate(
-                    id = manga.id, title = v.string("title"), favorite = v.bool("favorite"), notes = v.string("notes"),
-                    author = v.string("author"), artist = v.string("artist"), description = v.string("description"),
-                    thumbnailUrl = v.string("thumbnailUrl"), status = v.number("status"),
-                    genre = v["genre"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty(),
-                    viewerFlags = v.string(
-                        "viewerFlags",
-                        "0",
-                    ).toLong(),
-                    chapterFlags = v.string("chapterFlags", "0").toLong(),
+            check(
+                mangas.updateRemote(
+                    MangaRemoteUpdate(
+                        id = manga.id,
+                        title = v.string("title"),
+                        author = v.string("author"),
+                        artist = v.string("artist"),
+                        description = v.string("description"),
+                        genre = v["genre"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty(),
+                        status = v.number("status"),
+                        thumbnailUrl = v.string("thumbnailUrl"),
+                        updateStrategy = manga.updateStrategy,
+                        memo = manga.memo,
+                        initialized = manga.initialized,
+                        coverLastModified = manga.coverLastModified,
+                    ),
+                ),
+            )
+            check(
+                mangas.update(
+                    MangaUpdate(manga.id) {
+                        favoriteAt = if (v.bool("favorite")) manga.favoriteAt ?: mergedAt else null
+                        notes = v.string("notes")
+                        viewerFlags = v.string("viewerFlags", "0").toLong()
+                        chapterFlags = v.string("chapterFlags", "0").toLong()
+                    },
                 ),
             )
             val categoryIds = v["categories"]?.jsonArray.orEmpty().map { item ->
                 val name = item.jsonPrimitive.content.take(200)
                 if (categoryMap[name] == null) {
-                    categories.insert(Category(-1, name, categoryMap.size.toLong(), 0))
+                    categories.insert(NewCategory(name, flags = 0))
                     categories.getAll().forEach { categoryMap[it.name] = it }
                 }
                 categoryMap.getValue(name).id
@@ -249,36 +265,44 @@ class LanLibraryAdapter(
             mangas.setMangaCategories(manga.id, categoryIds)
             mangaMap[record.key] = manga
         }
-        records.filter { it.kind == "chapter" }.forEach { record ->
-            val v = record.value
-            val manga = mangaMap[v.string("mangaKey")] ?: return@forEach
-            var chapter = chapters.getChapterByUrlAndMangaId(v.string("url"), manga.id)
-            if (chapter == null) {
-                chapter = chapters.addAll(
-                    listOf(
-                        Chapter.create().copy(
-                            mangaId = manga.id,
-                            url = v.string("url"),
-                            name = v.string("name"),
-                            chapterNumber = v["chapterNumber"]?.jsonPrimitive?.doubleOrNull ?: -1.0,
-                            scanlator = v.string("scanlator").ifEmpty { null },
-                            sourceOrder = v.number("sourceOrder"),
-                            dateUpload = v.number("dateUpload"),
-                            dateFetch = now,
-                        ),
-                    ),
-                ).single()
+        val chaptersByManga = records.filter { it.kind == "chapter" }.groupBy { it.value.string("mangaKey") }
+        for ((key, chapterRecords) in chaptersByManga) {
+            val manga = mangaMap[key] ?: continue
+            val stored = chapters.getChapterByMangaId(manga.id).associateBy { it.url }.toMutableMap()
+            val missing = chapterRecords.map { it.value }.filterNot { it.string("url") in stored }.map { value ->
+                Chapter.create().copy(
+                    mangaId = manga.id,
+                    url = value.string("url"),
+                    name = value.string("name"),
+                    chapterNumber = value["chapterNumber"]?.jsonPrimitive?.doubleOrNull ?: -1.0,
+                    scanlator = value.string("scanlator").ifEmpty { null },
+                    sourceOrder = value.number("sourceOrder"),
+                    dateUpload = value.number("dateUpload").takeUnless { it == 0L }
+                        ?.let(Instant::fromEpochMilliseconds),
+                    dateFetch = mergedAt,
+                )
             }
-            chapters.update(
-                ChapterUpdate(
-                    chapter.id,
-                    read = v.bool("read"),
-                    bookmark = v.bool("bookmark"),
-                    lastPageRead = v.number("lastPageRead"),
-                ),
-            )
-            val readAt = v.number("readAt")
-            if (readAt > 0) history.upsertHistory(HistoryUpdate(chapter.id, Date(readAt), 0))
+            if (missing.isNotEmpty()) {
+                val inserted = chapters.updateFromRemote(emptyList(), missing, emptyList())
+                inserted.associateByTo(stored) { it.url }
+            }
+
+            for (record in chapterRecords) {
+                val value = record.value
+                val url = value.string("url")
+                val chapter = stored[url] ?: checkNotNull(chapters.getChapterByUrlAndMangaId(url, manga.id))
+                chapters.update(
+                    ChapterUpdate(chapter.id) {
+                        read = value.bool("read")
+                        bookmark = value.bool("bookmark")
+                        lastPageRead = value.number("lastPageRead").toInt()
+                    },
+                )
+                val readAt = value.number("readAt")
+                if (readAt > 0) {
+                    history.upsertHistory(HistoryUpdate(chapter.id, Instant.fromEpochMilliseconds(readAt), 0))
+                }
+            }
         }
         val personal = buildJsonObject {
             put("version", 1)

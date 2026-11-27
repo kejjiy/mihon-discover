@@ -8,13 +8,14 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import mihon.discover.AnilistCatalogApi
 import mihon.discover.DiscoverStore
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.track.repository.TrackRepository
 
@@ -33,7 +34,7 @@ class MangaRecommendationViewModel(
     val state: StateFlow<State> = mutableState.asStateFlow()
 
     fun load(manga: Manga) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             val tracked = tracks.getTracksByMangaId(manga.id)
                 .firstOrNull { it.trackerId == trackerManager.aniList.id }
                 ?.remoteId?.takeIf { it > 0 }
@@ -41,7 +42,7 @@ class MangaRecommendationViewModel(
                 ?: oldStore.linkedMediaId(manga.source, manga.url)
             if (id == null) {
                 mutableState.value = State()
-                return@launchIO
+                return@launch
             }
             val cached = store.getMedia(id) ?: oldStore.getMedia(id)
             mutableState.value = State(id, cached?.averageScore, store.feedback(id).vote)
@@ -62,7 +63,7 @@ class MangaRecommendationViewModel(
 
     fun vote(value: Int) {
         val id = state.value.id ?: return
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             store.setFeedback(id, vote = value)
             mutableState.update { it.copy(vote = value) }
         }

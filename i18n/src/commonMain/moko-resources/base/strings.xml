@@ -188,6 +188,8 @@
     <string name="onboarding_storage_selection_required">A folder must be selected</string>
     <string name="onboarding_storage_help_info">Updating from an older version and not sure what to select? Refer to the storage guide for more information.</string>
     <string name="onboarding_storage_help_action">Storage guide</string>
+    <string name="app_migrating_title">Finishing the update</string>
+    <string name="app_migrating_summary">Getting things ready after the update. This can take a few minutes, so keep the app open.</string>
     <string name="onboarding_permission_install_apps">Install apps permission</string>
     <string name="onboarding_permission_install_apps_description">To install source extensions.</string>
     <string name="onboarding_permission_notifications">Notification permission</string>
@@ -248,6 +250,13 @@
     <!-- "Today" instead of "2023-12-31" -->
     <string name="pref_relative_format_summary">\"%1$s\" instead of \"%2$s\"</string>
     <string name="pref_date_format">Date format</string>
+    <string name="pref_time_format">Time format</string>
+    <!-- "Follow" as in "adhere to", "align with" (the system default) -->
+    <string name="follow_system">Follow system</string>
+    <!-- "Follow" as in "adhere to", "align with" (the language default) -->
+    <string name="follow_language">Follow language</string>
+    <string name="time_24_hours">24-hour</string>
+    <string name="time_12_hours">12-hour</string>
     <string name="pref_display_images_description">Render images in manga descriptions</string>
 
     <string name="pref_manage_notifications">Manage notifications</string>
@@ -326,6 +335,8 @@
     <string name="pref_hide_missing_chapter_indicators">Hide missing chapter indicators</string>
     <string name="pref_disallow_non_ascii_filenames">Disallow non-ASCII filenames</string>
     <string name="pref_disallow_non_ascii_filenames_details">Ensures compatibility with certain storage media that don't support Unicode. When this is enabled, you'll need to manually rename source and manga folders by replacing non-ASCII characters with their lowercase UTF-8 hexadecimal representations. Chapter files don't need to be renamed.</string>
+    <string name="pref_enable_chapter_name_hash">Enable chapter name hash suffix</string>
+    <string name="pref_enable_chapter_name_hash_details">Ensures a unique hash suffix is added to chapter names to prevent naming conflicts. If disabled, chapters with identical names cannot be downloaded.</string>
 
       <!-- Extension section -->
     <string name="multi_lang">Multi</string>
@@ -343,6 +354,7 @@
     <string name="ext_filtered">Filtered</string>
     <string name="ext_not_loaded">Not loaded</string>
     <string name="ext_not_loaded_dialog">Couldn\'t load</string>
+    <string name="ext_not_loaded_details">Why it isn\'t loaded</string>
     <string name="ext_copy_stacktrace">Copy stack trace</string>
     <string name="ext_filtered_message">This extension\'s content warning isn\'t one you chose to load, so its sources aren\'t available.</string>
     <string name="ext_unsigned_message">This extension isn\'t signed, so there\'s no signature to check it against.</string>
@@ -379,7 +391,6 @@
     <string name="downloading_with_progress">Downloading… (%d%%)</string>
 
     <!-- Extension repos -->
-    <string name="action_open_repo">Open source repo</string>
 
     <!-- Extension store -->
     <string name="extensionStores">Extension stores</string>
@@ -405,6 +416,8 @@
     <string name="pref_double_tap_zoom">Double tap to zoom</string>
     <string name="pref_cutout_short">Show content in cutout area</string>
     <string name="pref_page_transitions">Animate page transitions</string>
+    <string name="pref_load_ahead_only_over_wifi">Load ahead only on Wi-Fi</string>
+    <string name="pref_load_ahead_only_over_wifi_summary">Saves mobile data by loading only the pages near the one you\'re reading</string>
     <string name="pref_flash_page">Flash on page change</string>
     <string name="pref_flash_page_summ">Reduces ghosting on e-ink displays</string>
     <string name="pref_flash_duration">Flash duration</string>
@@ -421,7 +434,9 @@
     <string name="pref_webtoon_vertical_navigator_on_left">Place vertical navigator on the left side</string>
     <string name="pref_show_reading_mode">Show reading mode</string>
     <string name="pref_show_reading_mode_summary">Briefly show current mode when reader is opened</string>
-    <string name="pref_high_quality_renderer">Use high quality renderer</string>
+    <string name="pref_hardware_bitmap_threshold">Custom hardware bitmap threshold</string>
+    <string name="pref_hardware_bitmap_threshold_default">Default (%d)</string>
+    <string name="pref_hardware_bitmap_threshold_summary">If reader loads a blank image incrementally reduce the threshold.\nSelected: %s</string>
     <string name="pref_display_profile">Custom display profile</string>
     <string name="pref_crop_borders">Crop borders</string>
     <string name="pref_custom_brightness">Custom brightness</string>
@@ -511,34 +526,6 @@
     <string name="pref_low">Low</string>
     <string name="pref_lowest">Lowest</string>
     <string name="pref_webtoon_disable_zoom_out">Disable zoom out</string>
-    <string name="webgpu_viewer">WebGPU</string>
-    <string name="pref_transition_animation">Transition animation</string>
-    <string name="pref_transition_animation_dual">Transition animation (dual)</string>
-    <string name="transition_animation_basic">Basic</string>
-    <string name="transition_animation_flip_left">Page flip (left)</string>
-    <string name="transition_animation_flip_right">Page flip (right)</string>
-    <string name="transition_animation_stack_left">Stack (left)</string>
-    <string name="transition_animation_stack_right">Stack (right)</string>
-    <string name="transition_animation_stack_up">Stack (up)</string>
-    <string name="transition_animation_stack_down">Stack (down)</string>
-    <string name="transition_animation_sphere">Sphere</string>
-    <string name="transition_animation_cube_inside">Cube (Inside)</string>
-    <string name="transition_animation_cube_outside">Cube (Outside)</string>
-    <string name="transition_animation_fade">Fade</string>
-    <string name="transition_animation_fade_white">Fade to white</string>
-    <string name="transition_animation_none">None</string>
-    <string name="transition_animation_flip">Page flip</string>
-    <string name="pref_cutout_mode">Display cutout mode</string>
-    <string name="pref_cutout_mode_dual">Display cutout mode (dual)</string>
-    <string name="cutout_mode_ignore">Ignore</string>
-    <string name="cutout_mode_avoid">Avoid</string>
-    <string name="cutout_mode_shift">Shift</string>
-    <string name="pref_dual_page_view">Dual page view</string>
-    <string name="dual_page_view_never">Never</string>
-    <string name="dual_page_view_always">Always</string>
-    <string name="dual_page_view_wide">When wide</string>
-    <string name="pref_continuous_minwidth">Min width</string>
-    <string name="pref_continuous_gap">Gap</string>
 
       <!-- Downloads section -->
     <string name="pref_category_delete_chapters">Delete chapters</string>
@@ -564,8 +551,6 @@
     <string name="auto_download_while_reading">Auto download while reading</string>
     <string name="download_ahead_info">Only works if the current chapter + the next one are already downloaded.</string>
     <string name="save_chapter_as_cbz">Save as CBZ archive</string>
-    <string name="split_tall_images">Split tall images</string>
-    <string name="split_tall_images_summary">Improves reader performance</string>
     <string name="pref_download_concurrent_sources">Concurrent source downloads</string>
     <string name="pref_download_concurrent_pages">Concurrent page downloads</string>
     <string name="pref_download_concurrent_pages_summary">Pages downloaded simultaneously per source</string>
@@ -680,6 +665,8 @@
     <string name="pref_tablet_ui_mode">Tablet UI</string>
     <string name="pref_verbose_logging">Verbose logging</string>
     <string name="pref_verbose_logging_summary">Print verbose logs to system log (reduces app performance)</string>
+    <string name="pref_redact_sensitive_headers">Redact sensitive headers</string>
+    <string name="pref_redact_sensitive_headers_summary">Redacts certain sensitive values in the logs. Keep enabled for your security when sharing logs with other people.</string>
     <string name="pref_debug_info">Debug info</string>
     <string name="pref_update_library_manga_titles">Update library manga titles to match source</string>
     <string name="pref_update_library_manga_titles_summary">Warning: if a manga is renamed, it will be removed from the download queue (if present).</string>
@@ -987,6 +974,9 @@
     <!--UpdateCheck-->
     <string name="update_check_confirm">Download</string>
     <string name="update_check_open">Open on GitHub</string>
+    <string name="update_check_skip">Skip this version</string>
+    <string name="update_check_skip_title">Skip %s?</string>
+    <string name="update_check_skip_message">Updates often contain bug fixes and security improvements. You won\'t be reminded about this version again, but you\'ll still be notified when a newer one is released.</string>
     <!-- reserved for future use -->
     <string name="update_check_eol">This Android version is no longer supported</string>
     <string name="update_check_no_new_updates">No new updates available</string>
@@ -1011,6 +1001,8 @@
     <string name="information_webview_required">WebView is required for the app to function</string>
     <!-- Do not translate "WebView" -->
     <string name="information_webview_outdated">Please update the WebView app for better compatibility</string>
+    <!-- Do not translate "WebView" -->
+    <string name="information_webview_crashed">WebView stopped working and the page was closed</string>
     <string name="chapter_settings_updated">Updated default chapter settings</string>
 
     <!-- Download Notification -->
@@ -1020,7 +1012,6 @@
     <string name="download_notifier_text_only_wifi">No Wi-Fi connection available</string>
     <string name="download_notifier_no_network">No network connection available</string>
     <string name="download_notifier_download_paused">Downloads paused</string>
-    <string name="download_notifier_split_page_not_found">Page %d not found while splitting</string>
     <string name="download_notifier_split_page_path_not_found">Couldn\'t find file path of page %d</string>
     <string name="download_notifier_cache_renewal">Checking downloads</string>
 

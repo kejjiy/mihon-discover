@@ -11,6 +11,7 @@ import eu.kanade.domain.source.service.SourcePreferences
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.model.SManga
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -28,7 +29,6 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
 import mihon.discover.recommendation.RecommendationStore
 import mihon.domain.manga.model.toDomainManga
-import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.domain.manga.interactor.NetworkToLocalManga
 import tachiyomi.domain.manga.repository.MangaRepository
 import tachiyomi.domain.source.service.SourceManager
@@ -69,14 +69,14 @@ class DiscoverViewModel(
     fun setSort(sort: DiscoverSort) = _state.update { it.copy(sort = sort) }
     fun setFilters(filters: CatalogueFilters) = _state.update { it.copy(filters = filters) }
     fun savePreset(name: String, filters: CatalogueFilters) {
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             recommendationStore.savePreset(name, filters)
             _state.update { it.copy(presets = recommendationStore.presets()) }
         }
     }
 
     fun loadPresets() {
-        viewModelScope.launchIO {
+        viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(presets = recommendationStore.presets()) }
             try {
                 _state.update { it.copy(filterOptions = api.filterOptions()) }
@@ -95,7 +95,7 @@ class DiscoverViewModel(
     private fun loadFirstPage() = loadPage(1, append = false)
     private fun loadPage(page: Int, append: Boolean) {
         catalogueJob?.cancel()
-        catalogueJob = viewModelScope.launchIO {
+        catalogueJob = viewModelScope.launch(Dispatchers.IO) {
             val before = state.value
             _state.update { it.copy(loading = true, error = null, lastLoadedQuery = before.query) }
             runCatching {
@@ -157,7 +157,7 @@ class DiscoverViewModel(
 
     private fun searchSources(media: AniListMedia, refresh: Boolean) {
         sourceJob?.cancel()
-        sourceJob = viewModelScope.launchIO {
+        sourceJob = viewModelScope.launch(Dispatchers.IO) {
             val enabledLanguages = sourcePreferences.enabledLanguages.get()
             val disabled = sourcePreferences.disabledSources.get()
             val sources = sourceManager.getAll()
@@ -167,7 +167,7 @@ class DiscoverViewModel(
             if (!refresh) {
                 store.getMatches(media.id, sources.mapTo(mutableSetOf()) { it.id })?.let { cached ->
                     _state.update { it.copy(sourceState = cached) }
-                    return@launchIO
+                    return@launch
                 }
             } else {
                 store.clearMatches(media.id)
@@ -277,13 +277,13 @@ class DiscoverViewModel(
     }
 
     fun openMatch(match: SourceMatch) {
-        viewModelScope.launchIO {
-            val source = sourceManager.get(match.sourceId) ?: return@launchIO
-            val selected = state.value.selected ?: return@launchIO
+        viewModelScope.launch(Dispatchers.IO) {
+            val source = sourceManager.get(match.sourceId) ?: return@launch
+            val selected = state.value.selected ?: return@launch
             val existingId = recommendationStore.linkedId(source.id, match.url)
             if (existingId != null && existingId != selected.id) {
                 _state.update { it.copy(associationError = "Ce manga est déjà associé à une autre œuvre AniList.") }
-                return@launchIO
+                return@launch
             }
             val local = mangaRepository.getMangaByUrlAndSourceId(match.url, source.id)
                 ?: networkToLocalManga(
@@ -293,7 +293,7 @@ class DiscoverViewModel(
                         thumbnail_url = match.thumbnailUrl
                     }.toDomainManga(source.id),
                 )
-            if (state.value.selected?.id != selected.id) return@launchIO
+            if (state.value.selected?.id != selected.id) return@launch
             val linked = recommendationStore.link(
                 source.id,
                 match.url,
@@ -304,7 +304,7 @@ class DiscoverViewModel(
                 _state.update { current ->
                     current.copy(associationError = "Ce manga est déjà associé à une autre œuvre AniList.")
                 }
-                return@launchIO
+                return@launch
             }
             store.linkManga(source.id, match.url, selected.id)
             _state.update { it.copy(openMangaId = local.id) }
